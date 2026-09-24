@@ -1,0 +1,32 @@
+export const API_MESSAGES = {
+  unauthorized: "Unauthorized",
+  invalidPassword: "Invalid password",
+  databaseNotConfigured: "Database not configured",
+  unableToSave: "Unable to save",
+  noFileProvided: "No file provided",
+  fileTooLarge: "File size exceeds 5MB limit",
+  invalidFileType: "Invalid file type. Only images are allowed.",
+  internalServerError: "Internal server error. Please try again.",
+  fullNameRequired: "Full name is required (minimum 2 characters).",
+  phoneInvalid: "A valid phone number with at least 10 digits is required.",
+  emailInvalid: "Please provide a valid email address.",
+  matterRequired: "Please describe your legal matter in at least 10 characters.",
+  consultationReceived: "Consultation request received successfully!",
+} as const;
+
+export const UI_MESSAGES = {
+  openMenu: "Open navigation menu",
+  closeMenu: "Close navigation menu",
+  openMenuShort: "Open menu",
+  closeMenuShort: "Close menu",
+  bookConsultation: "Book Consultation ↗",
+  loadContentFailed: "Failed to load site content",
+  publishSuccess: "Changes published successfully!",
+  incorrectPassword: "Incorrect admin password. Please try again.",
+  unableToSaveChanges: "Unable to save changes.",
+  adminNetworkError: "Network error. Please try again.",
+  unableToSubmit: "Unable to submit consultation request. Please try again.",
+  networkError: "Network error. Please check your connection and try again.",
+  consultationForm: "Schedule Legal Consultation",
+  consultationFormDescription: "Fill out the form below. All communications are confidential.",
+} as const;
