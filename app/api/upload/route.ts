@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAdmin } from "@/lib/admin-auth";
+import { put } from "@vercel/blob";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import fs from "fs";
@@ -32,19 +33,30 @@ export async function POST(request: Request) {
 
     const buffer = Buffer.from(await file.arrayBuffer());
     
-    // Create uploads directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    if (!fs.existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
+    // Generate unique filename
+    const ext = file.name.split(".").pop() || "jpg";
+    const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const blob = await put(`uploads/${filename}`, buffer, {
+        access: "public",
+        contentType: file.type,
+        addRandomSuffix: false,
+      });
+
+      return NextResponse.json({ url: blob.url });
     }
 
-    // Generate unique filename
-    const ext = file.name.split('.').pop() || 'jpg';
-    const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
-    const filepath = path.join(uploadDir, filename);
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { error: "File storage is not configured. Add BLOB_READ_WRITE_TOKEN in Vercel." },
+        { status: 503 },
+      );
+    }
 
-    // Save file
-    await writeFile(filepath, buffer);
+    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    if (!fs.existsSync(uploadDir)) await mkdir(uploadDir, { recursive: true });
+    await writeFile(path.join(uploadDir, filename), buffer);
 
     return NextResponse.json({ url: `/uploads/${filename}` });
   } catch (error) {
