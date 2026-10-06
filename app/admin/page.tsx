@@ -22,6 +22,7 @@ type Consultation = {
   created_at: string;
   updated_at: string;
 };
+type NewsletterSummary = { subscribed: number; pending: number; unsubscribed: number };
 
 interface SiteContent {
   firmName: string;
@@ -63,6 +64,7 @@ const TABS = [
   { key: "nyaycast", label: "Nyaycast & News", icon: "📰" },
   { key: "contact", label: "Contact & Footer", icon: "📍" },
   { key: "consultations", label: "Consultation Inbox", icon: "📬" },
+  { key: "newsletter", label: "Nyaycast Newsletter", icon: "✉" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -262,7 +264,6 @@ export default function AdminPage() {
   const [content, setContent] = useState<SiteContent | null>(null);
   const routeTab = pathname.split("/")[2] as TabKey | undefined;
   const tab = TABS.some((item) => item.key === routeTab) ? routeTab! : "overview";
-  const [releasePreview, setReleasePreview] = useState<"v1" | "v2">("v1");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [saving, setSaving] = useState(false);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
@@ -271,6 +272,12 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState<ConsultationStatus | "all">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [newsletterSummary, setNewsletterSummary] = useState<NewsletterSummary | null>(null);
+  const [newsletterError, setNewsletterError] = useState("");
+  const [newsletterSubject, setNewsletterSubject] = useState("");
+  const [newsletterText, setNewsletterText] = useState("");
+  const [sendingNewsletter, setSendingNewsletter] = useState(false);
+  const [newsletterResult, setNewsletterResult] = useState("");
   const [dirty, setDirty] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -324,6 +331,17 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchNewsletterSummary = useCallback(async () => {
+    setNewsletterError("");
+    try {
+      const response = await fetch("/api/admin/newsletter");
+      if (!response.ok) throw new Error(await getApiError(response, "Newsletter service is not enabled."));
+      setNewsletterSummary(await response.json());
+    } catch (error) {
+      setNewsletterError(error instanceof Error ? error.message : "Could not load newsletter totals.");
+    }
+  }, []);
+
   useEffect(() => {
     if (!loggedIn || (tab !== "consultations" && tab !== "overview")) return;
 
@@ -333,6 +351,12 @@ export default function AdminPage() {
 
     return () => window.clearTimeout(timer);
   }, [loggedIn, tab, fetchConsultations]);
+
+  useEffect(() => {
+    if (!loggedIn || tab !== "newsletter") return;
+    const timer = window.setTimeout(() => void fetchNewsletterSummary(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loggedIn, tab, fetchNewsletterSummary]);
 
   function update<K extends keyof SiteContent>(key: K, value: SiteContent[K]) {
     setContent((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -404,6 +428,29 @@ export default function AdminPage() {
     }
     setToast({ message: "Consultation updated.", type: "success" });
     await fetchConsultations();
+  }
+
+  async function sendNewsletter() {
+    if (!window.confirm(`Send this Nyaycast update to ${newsletterSummary?.subscribed ?? 0} confirmed subscriber(s)?`)) return;
+    setSendingNewsletter(true);
+    setNewsletterResult("");
+    setNewsletterError("");
+    try {
+      const response = await fetch("/api/admin/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: newsletterSubject, text: newsletterText }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Newsletter could not be sent.");
+      setNewsletterResult(data.message);
+      setNewsletterSubject("");
+      setNewsletterText("");
+    } catch (error) {
+      setNewsletterError(error instanceof Error ? error.message : "Newsletter could not be sent.");
+    } finally {
+      setSendingNewsletter(false);
+    }
   }
 
   if (!authChecked) {
@@ -1389,6 +1436,22 @@ export default function AdminPage() {
     );
   }
 
+  function renderNewsletter() {
+    return (
+      <section className="max-w-4xl space-y-6">
+        <div><h2 className="text-xl font-serif text-white">Nyaycast monthly update</h2><p className="mt-1 text-xs text-slate-400">Only confirmed subscribers receive a campaign. Each email contains its own unsubscribe link.</p></div>
+        {newsletterError && <p role="alert" className="border border-red-800 bg-red-950/40 p-3 text-xs text-red-200">{newsletterError}</p>}
+        {newsletterResult && <p role="status" className="border border-emerald-800 bg-emerald-950/40 p-3 text-xs text-emerald-200">{newsletterResult}</p>}
+        {newsletterSummary && <dl className="grid grid-cols-3 border-y border-slate-800 py-4 text-center"><div><dd className="text-2xl font-serif text-white">{newsletterSummary.subscribed}</dd><dt className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">Confirmed</dt></div><div><dd className="text-2xl font-serif text-amber-400">{newsletterSummary.pending}</dd><dt className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">Pending</dt></div><div><dd className="text-2xl font-serif text-slate-400">{newsletterSummary.unsubscribed}</dd><dt className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">Unsubscribed</dt></div></dl>}
+        <div className="max-w-3xl space-y-4 border border-slate-800 bg-slate-900 p-5">
+          <TextField label="Email subject" value={newsletterSubject} onChange={setNewsletterSubject} placeholder="A clear, specific subject" />
+          <TextField label="Plain-text message" value={newsletterText} onChange={setNewsletterText} multiline placeholder="Write the monthly update. Keep legal information general and cite primary sources." />
+          <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-[11px] text-slate-500">A single send is limited to 300 confirmed addresses. Test sender-domain delivery before enabling.</p><button type="button" onClick={() => void sendNewsletter()} disabled={sendingNewsletter || !newsletterSubject.trim() || newsletterText.trim().length < 20 || !newsletterSummary?.subscribed} className="bg-amber-500 px-4 py-2.5 text-xs font-semibold text-slate-950 disabled:opacity-40">{sendingNewsletter ? "Sending…" : "Send monthly update"}</button></div>
+        </div>
+      </section>
+    );
+  }
+
   const tabContent: Record<TabKey, () => React.ReactNode> = {
     overview: renderOverview,
     general: renderGeneral,
@@ -1399,6 +1462,7 @@ export default function AdminPage() {
     nyaycast: renderNyaycast,
     contact: renderContact,
     consultations: renderConsultations,
+    newsletter: renderNewsletter,
   };
 
   /* ─── Dashboard Layout ─── */
@@ -1488,10 +1552,7 @@ export default function AdminPage() {
 
           <div className="flex items-center gap-4">
             {process.env.NODE_ENV === "development" && (
-              <div className="flex items-center border border-slate-700 p-1 text-[10px] font-semibold uppercase tracking-wider">
-                <button type="button" aria-pressed={releasePreview === "v1"} onClick={() => setReleasePreview("v1")} className={`px-2 py-1 ${releasePreview === "v1" ? "bg-amber-500 text-slate-950" : "text-slate-400"}`}>V1</button>
-                <button type="button" aria-pressed={releasePreview === "v2"} onClick={() => setReleasePreview("v2")} className={`px-2 py-1 ${releasePreview === "v2" ? "bg-amber-500 text-slate-950" : "text-slate-400"}`}>V2 Preview</button>
-              </div>
+              <Link href="/v2" className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 underline underline-offset-4">V2 Preview</Link>
             )}
             {dirty && (
               <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full font-medium">
@@ -1499,7 +1560,7 @@ export default function AdminPage() {
                 Unsaved Changes
               </span>
             )}
-            {tab !== "consultations" && (
+            {tab !== "consultations" && tab !== "newsletter" && (
               <button
                 type="button"
                 className={`inline-flex items-center gap-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-semibold text-xs rounded-xl px-5 py-2.5 shadow-lg shadow-amber-950/40 transition-all cursor-pointer ${
@@ -1542,22 +1603,7 @@ export default function AdminPage() {
         )}
 
         {/* Dynamic Content Body */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-slate-950">
-          {releasePreview === "v2" && process.env.NODE_ENV === "development" ? (
-            <section className="mx-auto max-w-3xl border border-dashed border-amber-500/50 bg-slate-900 p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-400">Local preview only · V2</p>
-              <h2 className="mt-3 text-2xl font-serif text-white">Engagement features are not released</h2>
-              <p className="mt-2 text-sm leading-relaxed text-slate-400">This preview is a placeholder for the separate V2 release. No V2 features are active on the public site.</p>
-              <ul className="mt-6 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
-                <li>Searchable legal guides</li>
-                <li>Gujarati and English editions</li>
-                <li>Opt-in Nyaycast updates</li>
-                <li>Downloadable legal checklists</li>
-                <li>Consultation preparation checklist</li>
-              </ul>
-            </section>
-          ) : tabContent[tab]()}
-        </main>
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-slate-950">{tabContent[tab]()}</main>
       </div>
     </div>
   );

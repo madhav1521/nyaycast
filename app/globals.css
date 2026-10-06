@@ -31,6 +31,10 @@ body {
   font-family: var(--font-serif);
 }
 
+.font-gujarati {
+  font-family: "Noto Sans Gujarati", "Nirmala UI", "Shruti", sans-serif;
+}
+
 .legal-card {
   background-color: #ffffff;
   border: 1px solid rgba(23, 37, 61, 0.08);
