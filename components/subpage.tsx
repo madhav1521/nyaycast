@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaWhatsapp } from "react-icons/fa6";
 import { SiteMotion } from "@/components/site-motion";
 import { DisclaimerGate } from "@/components/disclaimer-gate";
 import { ConsultationForm } from "@/components/consultation-form";
@@ -191,18 +192,18 @@ export function Subpage({ site, kind }: { site: SiteContent; kind: Kind }) {
             </div>
             <p>© {new Date().getFullYear()} Manas A. Agravat & Associates. All rights reserved.</p>
           </div>
-          <div className="flex items-center gap-4">
-            <a href={site.socials?.whatsapp || "https://wa.me/919978844826"} target="_blank" rel="noopener noreferrer" className="hover:text-[#b8955d] transition">
-              WhatsApp
+          <div className="flex items-center gap-3">
+            <a href={site.socials?.whatsapp || "https://wa.me/919978844826"} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#25D366] text-white flex items-center justify-center transition hover:scale-105" aria-label="WhatsApp">
+              <FaWhatsapp className="w-4 h-4" />
             </a>
-            <a href={site.socials?.linkedin || "https://www.linkedin.com/in/manasagravat"} target="_blank" rel="noopener noreferrer" className="hover:text-[#b8955d] transition">
-              LinkedIn
+            <a href={site.socials?.linkedin || "https://www.linkedin.com/in/manas-agravat-6931b65195"} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#0A66C2] text-white flex items-center justify-center transition hover:scale-105" aria-label="LinkedIn">
+              <FaLinkedinIn className="w-4 h-4" />
             </a>
-            <a href={site.socials?.facebook || "https://www.facebook.com/advocate.manasagravat"} target="_blank" rel="noopener noreferrer" className="hover:text-[#b8955d] transition">
-              Facebook
+            <a href={site.socials?.facebook || "https://www.facebook.com/agravat.manas"} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#1877F2] text-white flex items-center justify-center transition hover:scale-105" aria-label="Facebook">
+              <FaFacebookF className="w-4 h-4" />
             </a>
-            <a href={site.socials?.instagram || "https://www.instagram.com/adv.manasagravat"} target="_blank" rel="noopener noreferrer" className="hover:text-[#b8955d] transition">
-              Instagram
+            <a href={site.socials?.instagram || "https://www.instagram.com/nyaycast"} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white flex items-center justify-center transition hover:scale-105" aria-label="Instagram">
+              <FaInstagram className="w-4 h-4" />
             </a>
             <Link href="/" className="text-[#b8955d] hover:underline ml-2">
               Back to Homepage ↑

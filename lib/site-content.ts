@@ -19,9 +19,9 @@ export const defaultSiteContent = {
   notificationEmail: "manas0812@yopmail.com",
   officeHours: "Monday to Saturday · 10:00 am to 8:00 pm",
   socials: {
-    linkedin: "https://www.linkedin.com/in/manasagravat",
-    facebook: "https://www.facebook.com/advocate.manasagravat",
-    instagram: "https://www.instagram.com/adv.manasagravat",
+    linkedin: "https://www.linkedin.com/in/manas-agravat-6931b65195",
+    facebook: "https://www.facebook.com/share/1CKtf9P7p9",
+    instagram: "https://www.instagram.com/nyaycast",
     whatsapp: "https://wa.me/919978844826",
   },
   services: [

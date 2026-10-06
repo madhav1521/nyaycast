@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { FaFacebookF, FaInstagram, FaLinkedinIn, FaWhatsapp } from "react-icons/fa6";
 import { getSiteContent } from "@/lib/site-content";
 import { DisclaimerGate } from "@/components/disclaimer-gate";
 import { SiteMotion } from "@/components/site-motion";
@@ -401,37 +402,41 @@ export default async function Home() {
                 href={site.socials?.whatsapp || "https://wa.me/919978844826"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[#20314f] hover:bg-[#b8955d] hover:text-[#17253d] text-white flex items-center justify-center transition border border-slate-700/60"
+                className="w-8 h-8 rounded-lg bg-[#25D366] text-white flex items-center justify-center transition hover:scale-105 border border-slate-700/60"
                 title="WhatsApp Direct Chat"
+                aria-label="WhatsApp"
               >
-                💬
+                <FaWhatsapp className="w-4 h-4" />
               </a>
               <a
-                href={site.socials?.linkedin || "https://www.linkedin.com/in/manasagravat"}
+                href={site.socials?.linkedin || "https://www.linkedin.com/in/manas-agravat-6931b65195"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[#20314f] hover:bg-[#b8955d] hover:text-[#17253d] text-white flex items-center justify-center transition border border-slate-700/60"
+                className="w-8 h-8 rounded-lg bg-[#0A66C2] text-white flex items-center justify-center transition hover:scale-105 border border-slate-700/60"
                 title="LinkedIn Profile"
+                aria-label="LinkedIn"
               >
-                in
+                <FaLinkedinIn className="w-4 h-4" />
               </a>
               <a
-                href={site.socials?.facebook || "https://www.facebook.com/advocate.manasagravat"}
+                href={site.socials?.facebook || "https://www.facebook.com/share/1CKtf9P7p9"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[#20314f] hover:bg-[#b8955d] hover:text-[#17253d] text-white flex items-center justify-center transition border border-slate-700/60"
+                className="w-8 h-8 rounded-lg bg-[#1877F2] text-white flex items-center justify-center transition hover:scale-105 border border-slate-700/60"
                 title="Facebook Page"
+                aria-label="Facebook"
               >
-                fb
+                <FaFacebookF className="w-4 h-4" />
               </a>
               <a
-                href={site.socials?.instagram || "https://www.instagram.com/adv.manasagravat"}
+                href={site.socials?.instagram || "https://www.instagram.com/nyaycast"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-8 h-8 rounded-lg bg-[#20314f] hover:bg-[#b8955d] hover:text-[#17253d] text-white flex items-center justify-center transition border border-slate-700/60"
+                className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white flex items-center justify-center transition hover:scale-105 border border-slate-700/60"
                 title="Instagram"
+                aria-label="Instagram"
               >
-                ig
+                <FaInstagram className="w-4 h-4" />
               </a>
             </div>
           </div>
