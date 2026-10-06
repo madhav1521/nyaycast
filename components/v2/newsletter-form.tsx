@@ -18,7 +18,7 @@ export function NewsletterForm({ action }: { action?: "confirm" | "unsubscribe";
       const response = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, consent }),
+        body: JSON.stringify({ email, consent, website: new FormData(event.currentTarget).get("website") }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Unable to request subscription.");
@@ -36,6 +36,7 @@ export function NewsletterForm({ action }: { action?: "confirm" | "unsubscribe";
 
   return (
     <form onSubmit={subscribe} className="max-w-xl space-y-5 border-t border-[#17253d]/15 pt-6">
+      <label aria-hidden="true" className="absolute -left-[10000px] h-px w-px overflow-hidden">Leave this field empty<input name="website" type="text" tabIndex={-1} autoComplete="off" /></label>
       <label className="block space-y-2"><span className="text-xs font-semibold uppercase tracking-wider">Email address</span><input required type="email" autoComplete="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} className="w-full border border-slate-300 bg-white px-4 py-3 text-sm outline-none focus:border-[#b8955d]" /></label>
       <label className="flex items-start gap-3 text-sm leading-relaxed text-slate-700"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} required className="mt-1 size-4 accent-[#17253d]" /><span>I want to receive occasional monthly Nyaycast legal-information updates by email. I understand this is optional and I can unsubscribe at any time.</span></label>
       <button type="submit" disabled={loading || !consent} className="bg-[#17253d] px-5 py-3 text-xs font-semibold uppercase tracking-wider text-white disabled:opacity-50">{loading ? "Sending…" : "Email me a confirmation link"}</button>

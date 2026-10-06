@@ -20,6 +20,19 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Database Migrations
+
+Add database changes as SQL statements in a numbered file under `database/migrations/`, then run:
+
+```bash
+npm run migrate:check
+npm run migrate
+```
+
+The migration runner records each SQL statement checksum as well as the migration filename. If a new statement is appended to a migration file that has already run, the next `npm run migrate` applies only the statement(s) it has not recorded. Each migration file runs transactionally, so a failed statement rolls back its pending statements and can be retried after fixing the issue. Existing filename-only migration records are baselined on the first run with this runner; their current statements are assumed to already exist in the database.
+
+Prefer additive changes such as `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` when evolving existing tables. A changed statement is considered new SQL and will run again; editing a `CREATE TABLE IF NOT EXISTS` definition does not alter a table that already exists. Never edit or remove migration ledger rows manually to force a rerun.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

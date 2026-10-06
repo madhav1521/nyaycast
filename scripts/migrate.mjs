@@ -1,4 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -142,30 +143,87 @@ async function main() {
       applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS public.schema_migration_statements (
+      version TEXT NOT NULL,
+      statement_hash TEXT NOT NULL,
+      occurrence INTEGER NOT NULL,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (version, statement_hash, occurrence)
+    )
+  `;
 
   const appliedRows = await sql`SELECT version FROM public.schema_migrations`;
   const applied = new Set(appliedRows.map((row) => row.version));
-  let count = 0;
+  let appliedCount = 0;
+  let baselineCount = 0;
 
   for (const migration of migrations) {
-    if (applied.has(migration.file)) {
-      process.stdout.write(`Already applied: ${migration.file}\n`);
-      continue;
-    }
     if (migration.statements.length === 0) {
       process.stdout.write(`Skipping empty migration: ${migration.file}\n`);
       continue;
     }
 
-    const queries = migration.statements.map((statement) => sql.query(statement));
-    queries.push(sql.query("INSERT INTO public.schema_migrations (version) VALUES ($1)", [migration.file]));
+    const seenOccurrences = new Map();
+    const statements = migration.statements.map((statement) => {
+      const statementHash = createHash("sha256").update(statement.trim().replace(/\s+/g, " ")).digest("hex");
+      const occurrence = seenOccurrences.get(statementHash) || 0;
+      seenOccurrences.set(statementHash, occurrence + 1);
+      return { statement, statementHash, occurrence };
+    });
+
+    const trackedRows = await sql`
+      SELECT statement_hash, occurrence
+      FROM public.schema_migration_statements
+      WHERE version = ${migration.file}
+    `;
+    const tracked = new Set(trackedRows.map((row) => `${row.statement_hash}:${row.occurrence}`));
+
+    if (applied.has(migration.file) && tracked.size === 0) {
+      const baselineQueries = [
+        sql`SELECT pg_advisory_xact_lock(hashtext('manas_site_schema_migrations'))`,
+        ...statements.map(({ statementHash, occurrence }) => sql.query(
+          `INSERT INTO public.schema_migration_statements (version, statement_hash, occurrence) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+          [migration.file, statementHash, occurrence],
+        )),
+      ];
+      await sql.transaction(baselineQueries);
+      baselineCount += statements.length;
+      process.stdout.write(`Baselined existing migration: ${migration.file} (${statements.length} statements)\n`);
+      continue;
+    }
+
+    const pending = statements.filter(({ statementHash, occurrence }) => !tracked.has(`${statementHash}:${occurrence}`));
+    if (pending.length === 0) {
+      process.stdout.write(`Already up to date: ${migration.file}\n`);
+      continue;
+    }
+
+    const queries = [
+      sql`SELECT pg_advisory_xact_lock(hashtext('manas_site_schema_migrations'))`,
+      ...pending.flatMap(({ statement, statementHash, occurrence }) => [
+        sql.query(statement),
+        sql.query(
+          `INSERT INTO public.schema_migration_statements (version, statement_hash, occurrence) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
+          [migration.file, statementHash, occurrence],
+        ),
+      ]),
+      sql.query(
+        "INSERT INTO public.schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING",
+        [migration.file],
+      ),
+    ];
     await sql.transaction(queries);
     applied.add(migration.file);
-    count += 1;
-    process.stdout.write(`Applied: ${migration.file}\n`);
+    appliedCount += pending.length;
+    process.stdout.write(`Applied ${pending.length} new statement(s): ${migration.file}\n`);
   }
 
-  process.stdout.write(count ? `Migration complete: ${count} applied.\n` : "Database is up to date.\n");
+  if (appliedCount || baselineCount) {
+    process.stdout.write(`Migration complete: ${appliedCount} SQL statement(s) applied; ${baselineCount} existing statement(s) baselined.\n`);
+  } else {
+    process.stdout.write("Database is up to date.\n");
+  }
 }
 
 main().catch((error) => {

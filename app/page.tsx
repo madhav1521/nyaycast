@@ -457,6 +457,16 @@ export default async function Home() {
             <span className="font-semibold text-white uppercase text-[10px] tracking-wider block">Office Hours</span>
             <p className="text-slate-300">{site.officeHours}</p>
           </div>
+
+          <nav aria-label="Legal resources" className="space-y-2 md:col-span-4">
+            <span className="font-semibold text-white uppercase text-[10px] tracking-wider block">Nyaycast & Resources</span>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-slate-300">
+              <Link href="/guides" className="hover:text-[#b8955d]">Legal guides</Link>
+              <Link href="/resources/checklists" className="hover:text-[#b8955d]">Checklists</Link>
+              <Link href="/newsletter" className="hover:text-[#b8955d]">Monthly updates</Link>
+              <Link href="/privacy" className="hover:text-[#b8955d]">Privacy</Link>
+            </div>
+          </nav>
         </div>
       </footer>
     </div>

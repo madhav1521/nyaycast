@@ -21,7 +21,6 @@ function siteBaseUrl() {
 }
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV !== "development") return Response.json({ error: "Not found." }, { status: 404 });
   if (process.env.NEWSLETTER_ENABLED !== "true") {
     return Response.json({ error: "Newsletter signup is not enabled yet." }, { status: 503 });
   }
@@ -31,6 +30,9 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
+    if (typeof body.website === "string" && body.website.length > 0) {
+      return Response.json({ message: genericMessage });
+    }
     const email = String(body.email || "").trim().toLowerCase();
     if (body.consent !== true) return Response.json({ error: "Please confirm that you want to receive monthly updates." }, { status: 400 });
     if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
         consent_source, updated_at
       ) VALUES (
         ${email}, 'pending', ${hashToken(confirmationToken)}, ${hashToken(unsubscribeToken)},
-        NOW() + INTERVAL '24 hours', NOW(), NULL, 'nyaycast-v2-form', NOW()
+        NOW() + INTERVAL '24 hours', NOW(), NULL, 'nyaycast-site-form', NOW()
       )
       ON CONFLICT (email) DO UPDATE SET
         status = 'pending',
@@ -68,8 +70,8 @@ export async function POST(request: Request) {
     if (!rows.length) return Response.json({ message: genericMessage });
     await sql`INSERT INTO newsletter_unsubscribe_tokens (token_hash, email) VALUES (${hashToken(unsubscribeToken)}, ${email})`;
 
-    const confirmUrl = `${baseUrl}/v2/newsletter/confirm?token=${encodeURIComponent(confirmationToken)}`;
-    const unsubscribeUrl = `${baseUrl}/v2/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
+    const confirmUrl = `${baseUrl}/newsletter/confirm?token=${encodeURIComponent(confirmationToken)}`;
+    const unsubscribeUrl = `${baseUrl}/newsletter/unsubscribe?token=${encodeURIComponent(unsubscribeToken)}`;
     const safeEmail = escapeHtml(email);
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error } = await resend.emails.send({

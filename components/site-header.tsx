@@ -19,6 +19,7 @@ export function SiteHeader({ site, homePage = false, activeRoute }: SiteHeaderPr
         ...item,
         href: item.href === ROUTES.homeSection.about ? ROUTES.about : item.href,
       }));
+  const siteNavigation = [...navigation, { href: "/resources", label: "Resources" }];
   const consultationHref = homePage ? ROUTES.homeSection.consultation : ROUTES.contact;
 
   return (
@@ -45,7 +46,7 @@ export function SiteHeader({ site, homePage = false, activeRoute }: SiteHeaderPr
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 text-xs font-semibold uppercase tracking-wider text-slate-700" aria-label="Main navigation">
-          {navigation.map((item) => (
+          {siteNavigation.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -62,12 +63,7 @@ export function SiteHeader({ site, homePage = false, activeRoute }: SiteHeaderPr
         >
           <span>{UI_MESSAGES.bookConsultation}</span>
         </Link>
-        {process.env.NODE_ENV === "development" && (
-          <Link href="/v2" className="hidden md:inline-flex text-[10px] font-semibold uppercase tracking-wider text-[#986f35] underline underline-offset-4">
-            V2 Local Preview
-          </Link>
-        )}
-        <MobileNav items={navigation} ctaHref={consultationHref} activeHref={activeRoute} />
+        <MobileNav items={siteNavigation} ctaHref={consultationHref} activeHref={activeRoute} />
       </div>
     </header>
   );

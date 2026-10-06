@@ -11,11 +11,10 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (character) => (
 }[character]!));
 
 function allowed() {
-  return process.env.NODE_ENV === "development" && process.env.NEWSLETTER_ENABLED === "true";
+  return process.env.NEWSLETTER_ENABLED === "true";
 }
 
 export async function GET() {
-  if (process.env.NODE_ENV !== "development") return Response.json({ error: "Not found." }, { status: 404 });
   if (!(await isAdmin())) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!allowed() || !process.env.DATABASE_URL) return Response.json({ error: "Newsletter service is not enabled or configured." }, { status: 503 });
 
@@ -35,7 +34,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV !== "development") return Response.json({ error: "Not found." }, { status: 404 });
   if (!(await isAdmin())) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!allowed() || !process.env.DATABASE_URL || !process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL || !process.env.NEXT_PUBLIC_SITE_URL) {
     return Response.json({ error: "Newsletter sending is not enabled or fully configured." }, { status: 503 });
@@ -67,7 +65,7 @@ export async function POST(request: Request) {
       const token = randomBytes(32).toString("base64url");
       const tokenHash = hashToken(token);
       await sql`INSERT INTO newsletter_unsubscribe_tokens (token_hash, email) VALUES (${tokenHash}, ${subscriber.email})`;
-      const unsubscribeUrl = `${baseUrl}/v2/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
+      const unsubscribeUrl = `${baseUrl}/newsletter/unsubscribe?token=${encodeURIComponent(token)}`;
       const htmlMessage = escapeHtml(text).replaceAll("\n", "<br>");
       try {
         const { error } = await resend.emails.send({

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { AnalyticsConsent } from "@/components/analytics-consent";
 import "./globals.css";
 
 const sourceSerif = Source_Serif_4({
@@ -71,6 +72,7 @@ export default function RootLayout({
     >
       <body className="min-h-screen flex flex-col justify-between bg-[#f8f6f0] text-[#17253d] selection:bg-[#b8955d]/20 overflow-x-hidden w-full font-sans">
         {children}
+        <AnalyticsConsent />
       </body>
     </html>
   );

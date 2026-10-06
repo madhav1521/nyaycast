@@ -4,7 +4,6 @@ import { neon } from "@neondatabase/serverless";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  if (process.env.NODE_ENV !== "development") return Response.json({ error: "Not found." }, { status: 404 });
   if (process.env.NEWSLETTER_ENABLED !== "true" || !process.env.DATABASE_URL) {
     return Response.json({ error: "Newsletter service is not available." }, { status: 503 });
   }

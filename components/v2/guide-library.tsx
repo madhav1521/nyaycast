@@ -44,7 +44,7 @@ export function GuideLibrary() {
             <h2 lang={language} className={`mt-3 font-serif text-2xl leading-tight text-[#17253d] ${language === "gu" ? "font-gujarati" : ""}`}>{guide[language].title}</h2>
             <p lang={language} className="mt-3 text-sm leading-relaxed text-slate-600">{guide[language].summary}</p>
             <p className="mt-4 text-xs leading-relaxed text-slate-500">{guide.citation}</p>
-            <Link href={`/v2/guides/${guide.slug}?lang=${language}`} className="mt-5 inline-flex items-center gap-2 border-b border-[#b8955d] pb-1 text-xs font-semibold text-[#17253d] hover:text-[#986f35]">{labels.read}<span aria-hidden="true">↗</span></Link>
+            <Link href={`/guides/${guide.slug}?lang=${language}`} className="mt-5 inline-flex items-center gap-2 border-b border-[#b8955d] pb-1 text-xs font-semibold text-[#17253d] hover:text-[#986f35]">{labels.read}<span aria-hidden="true">↗</span></Link>
           </article>
         ))}
       </div>

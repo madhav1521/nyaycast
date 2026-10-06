@@ -1,11 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
-import { FaFacebookF, FaInstagram, FaLinkedinIn, FaWhatsapp } from "react-icons/fa6";
 import { SiteMotion } from "@/components/site-motion";
 import { DisclaimerGate } from "@/components/disclaimer-gate";
 import { ConsultationForm } from "@/components/consultation-form";
 import { ConsultationModal } from "@/components/consultation-modal";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import type { SiteContent } from "@/lib/site-content";
 import { normalizePhoneNumber } from "@/lib/common";
 
@@ -130,6 +130,11 @@ export function Subpage({ site, kind }: { site: SiteContent; kind: Kind }) {
               <p className="text-slate-600 text-sm max-w-2xl leading-relaxed">
                 {site.nyaycastDescription}
               </p>
+              <div className="flex flex-wrap gap-3 border-y border-slate-200 py-5">
+                <Link href="/guides" className="inline-flex items-center gap-2 bg-[#17253d] px-4 py-3 text-xs font-semibold text-white hover:bg-[#20314f]">Browse legal guides <span aria-hidden="true">↗</span></Link>
+                <Link href="/resources" className="inline-flex items-center gap-2 border border-slate-300 bg-white px-4 py-3 text-xs font-semibold text-[#17253d] hover:border-[#b8955d]">All resources <span aria-hidden="true">↗</span></Link>
+                <Link href="/newsletter" className="inline-flex items-center gap-2 border border-slate-300 bg-white px-4 py-3 text-xs font-semibold text-[#17253d] hover:border-[#b8955d]">Monthly updates <span aria-hidden="true">↗</span></Link>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {site.articles.map((article) => (
                   <div key={article.title} className="legal-card rounded-2xl p-5 space-y-3 flex flex-col justify-between">
@@ -183,34 +188,7 @@ export function Subpage({ site, kind }: { site: SiteContent; kind: Kind }) {
         </section>
       </main>
 
-      {/* ─── Sticky Bottom Footer with Contact & Social Navigation ─── */}
-      <footer className="mt-auto bg-[#101b2d] border-t border-slate-800 py-10 text-slate-400 text-xs">
-        <div className="max-w-6xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="relative w-7 h-7 rounded-lg overflow-hidden bg-white border border-[#b8955d]/40 flex items-center justify-center p-0.5">
-              <Image src="/images/manas-logo.png" alt="Manas Logo" fill className="object-contain" sizes="28px" />
-            </div>
-            <p>© {new Date().getFullYear()} Manas A. Agravat & Associates. All rights reserved.</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <a href={site.socials?.whatsapp || "https://wa.me/919978844826"} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#25D366] text-white flex items-center justify-center transition hover:scale-105" aria-label="WhatsApp">
-              <FaWhatsapp className="w-4 h-4" />
-            </a>
-            <a href={site.socials?.linkedin || "https://www.linkedin.com/in/manas-agravat-6931b65195"} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#0A66C2] text-white flex items-center justify-center transition hover:scale-105" aria-label="LinkedIn">
-              <FaLinkedinIn className="w-4 h-4" />
-            </a>
-            <a href={site.socials?.facebook || "https://www.facebook.com/agravat.manas"} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-[#1877F2] text-white flex items-center justify-center transition hover:scale-105" aria-label="Facebook">
-              <FaFacebookF className="w-4 h-4" />
-            </a>
-            <a href={site.socials?.instagram || "https://www.instagram.com/nyaycast"} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#f9ce34] via-[#ee2a7b] to-[#6228d7] text-white flex items-center justify-center transition hover:scale-105" aria-label="Instagram">
-              <FaInstagram className="w-4 h-4" />
-            </a>
-            <Link href="/" className="text-[#b8955d] hover:underline ml-2">
-              Back to Homepage ↑
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter site={site} />
     </div>
   );
 }

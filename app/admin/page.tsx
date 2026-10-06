@@ -23,6 +23,18 @@ type Consultation = {
   updated_at: string;
 };
 type NewsletterSummary = { subscribed: number; pending: number; unsubscribed: number };
+type AnalyticsReport = {
+  rangeDays: number;
+  page_views: number;
+  unique_browsers: number;
+  returning_browsers: number;
+  return_visits: number;
+  visits: number;
+  consultationSubmissions: number;
+  daily: { day: string; page_views: number; unique_browsers: number }[];
+  popular: { path: string; page_views: number; unique_browsers: number }[];
+  definitions: { uniqueBrowsers: string; returningBrowsers: string; returnVisits: string };
+};
 
 interface SiteContent {
   firmName: string;
@@ -65,6 +77,7 @@ const TABS = [
   { key: "contact", label: "Contact & Footer", icon: "📍" },
   { key: "consultations", label: "Consultation Inbox", icon: "📬" },
   { key: "newsletter", label: "Nyaycast Newsletter", icon: "✉" },
+  { key: "analytics", label: "Visitor Analytics", icon: "▥" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -278,6 +291,10 @@ export default function AdminPage() {
   const [newsletterText, setNewsletterText] = useState("");
   const [sendingNewsletter, setSendingNewsletter] = useState(false);
   const [newsletterResult, setNewsletterResult] = useState("");
+  const [analyticsDays, setAnalyticsDays] = useState<7 | 30 | 90>(30);
+  const [analyticsReport, setAnalyticsReport] = useState<AnalyticsReport | null>(null);
+  const [analyticsError, setAnalyticsError] = useState("");
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -342,6 +359,20 @@ export default function AdminPage() {
     }
   }, []);
 
+  const fetchAnalytics = useCallback(async (days: number) => {
+    setAnalyticsLoading(true);
+    setAnalyticsError("");
+    try {
+      const response = await fetch(`/api/admin/analytics?days=${days}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(await getApiError(response, "Analytics are unavailable."));
+      setAnalyticsReport(await response.json());
+    } catch (error) {
+      setAnalyticsError(error instanceof Error ? error.message : "Analytics are unavailable.");
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!loggedIn || (tab !== "consultations" && tab !== "overview")) return;
 
@@ -357,6 +388,12 @@ export default function AdminPage() {
     const timer = window.setTimeout(() => void fetchNewsletterSummary(), 0);
     return () => window.clearTimeout(timer);
   }, [loggedIn, tab, fetchNewsletterSummary]);
+
+  useEffect(() => {
+    if (!loggedIn || tab !== "analytics") return;
+    const timer = window.setTimeout(() => void fetchAnalytics(analyticsDays), 0);
+    return () => window.clearTimeout(timer);
+  }, [analyticsDays, fetchAnalytics, loggedIn, tab]);
 
   function update<K extends keyof SiteContent>(key: K, value: SiteContent[K]) {
     setContent((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -1452,6 +1489,32 @@ export default function AdminPage() {
     );
   }
 
+  function renderAnalytics() {
+    const report = analyticsReport;
+    const maxViews = Math.max(1, ...(report?.daily.map((day) => day.page_views) || []));
+    const metrics = report ? [
+      { label: "Unique browsers", value: report.unique_browsers, detail: report.definitions.uniqueBrowsers },
+      { label: "Returning browsers", value: report.returning_browsers, detail: report.definitions.returningBrowsers },
+      { label: "Return visits", value: report.return_visits, detail: report.definitions.returnVisits },
+      { label: "Page views", value: report.page_views, detail: "Tracked public page loads after analytics consent." },
+      { label: "Visits", value: report.visits, detail: "Counted browsing visits, with a new visit after a 24-hour gap." },
+      { label: "Consultation requests", value: report.consultationSubmissions, detail: "Consultation submission count for this period. Messages and personal details are not included." },
+    ] : [];
+
+    return (
+      <section className="max-w-6xl space-y-7">
+        <div className="flex flex-wrap items-end justify-between gap-4"><div><h2 className="text-xl font-serif text-white">Visitor analytics</h2><p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-400">Anonymous counts include consenting browsers only. A browser ID is not a person; clearing browser data or using another device changes the estimate.</p></div><div className="inline-flex border border-slate-700 p-1" aria-label="Analytics date range">{([7, 30, 90] as const).map((days) => <button key={days} type="button" aria-pressed={analyticsDays === days} onClick={() => setAnalyticsDays(days)} className={`px-3 py-2 text-xs font-semibold ${analyticsDays === days ? "bg-amber-500 text-slate-950" : "text-slate-300"}`}>{days} days</button>)}</div></div>
+        {analyticsError && <p role="alert" className="border border-red-800 bg-red-950/40 p-3 text-xs text-red-200">{analyticsError}</p>}
+        {analyticsLoading && <p className="text-xs text-slate-400">Updating report…</p>}
+        {report && <>
+          <div className="grid gap-px border border-slate-800 bg-slate-800 sm:grid-cols-2 xl:grid-cols-3">{metrics.map((metric) => <div key={metric.label} title={metric.detail} className="bg-slate-950 p-5"><p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{metric.label}</p><p className="mt-2 text-3xl font-serif tabular-nums text-white">{metric.value}</p><p className="mt-2 text-[11px] leading-relaxed text-slate-500">{metric.detail}</p></div>)}</div>
+          <section className="border-t border-slate-800 pt-5"><h3 className="text-sm font-semibold text-white">Daily page views</h3>{report.daily.length ? <div className="mt-4 flex h-44 items-end gap-1 overflow-x-auto border-b border-slate-700 pb-1">{report.daily.map((day) => <div key={day.day} title={`${day.day}: ${day.page_views} page views, ${day.unique_browsers} unique browsers`} className="flex min-w-3 flex-1 flex-col items-center justify-end"><span className="mb-1 hidden text-[9px] text-slate-400 sm:block">{day.page_views}</span><div className="w-full bg-amber-500/80" style={{ height: `${Math.max(3, day.page_views / maxViews * 130)}px` }} /><span className="mt-2 text-[8px] text-slate-500">{day.day.slice(5)}</span></div>)}</div> : <p className="mt-3 text-xs text-slate-500">No consenting page views in this range.</p>}</section>
+          <section className="border-t border-slate-800 pt-5"><h3 className="text-sm font-semibold text-white">Most viewed public routes</h3><div className="mt-3 divide-y divide-slate-800">{report.popular.map((item) => <div key={item.path} className="flex flex-wrap items-center justify-between gap-2 py-3 text-xs"><span className="font-mono text-slate-300">{item.path}</span><span className="text-slate-400">{item.page_views} views · {item.unique_browsers} browsers</span></div>)}{report.popular.length === 0 && <p className="py-3 text-xs text-slate-500">No route data in this range.</p>}</div></section>
+        </>}
+      </section>
+    );
+  }
+
   const tabContent: Record<TabKey, () => React.ReactNode> = {
     overview: renderOverview,
     general: renderGeneral,
@@ -1463,6 +1526,7 @@ export default function AdminPage() {
     contact: renderContact,
     consultations: renderConsultations,
     newsletter: renderNewsletter,
+    analytics: renderAnalytics,
   };
 
   /* ─── Dashboard Layout ─── */
@@ -1551,16 +1615,13 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-4">
-            {process.env.NODE_ENV === "development" && (
-              <Link href="/v2" className="text-[10px] font-semibold uppercase tracking-wider text-amber-400 underline underline-offset-4">V2 Preview</Link>
-            )}
             {dirty && (
               <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full font-medium">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                 Unsaved Changes
               </span>
             )}
-            {tab !== "consultations" && tab !== "newsletter" && (
+            {tab !== "consultations" && tab !== "newsletter" && tab !== "analytics" && (
               <button
                 type="button"
                 className={`inline-flex items-center gap-2 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-semibold text-xs rounded-xl px-5 py-2.5 shadow-lg shadow-amber-950/40 transition-all cursor-pointer ${
