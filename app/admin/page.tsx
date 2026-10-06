@@ -2,6 +2,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState, useCallback, useRef } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { UI_MESSAGES } from "@/constants/messages";
 import { getApiError } from "@/lib/common";
 
@@ -9,13 +10,17 @@ type Service = { title: string; description: string; image?: string };
 type TeamMember = { name: string; role: string; initials: string; image?: string };
 type Testimonial = { name: string; quote: string };
 type Article = { category: string; title: string; href: string; image?: string };
+type ConsultationStatus = "new" | "contacted" | "in_progress" | "resolved" | "archived";
 type Consultation = {
   id: number;
   name: string;
   phone: string;
-  email: string;
+  email: string | null;
   message: string;
+  status: ConsultationStatus;
+  admin_notes: string;
   created_at: string;
+  updated_at: string;
 };
 
 interface SiteContent {
@@ -49,6 +54,7 @@ interface SiteContent {
 }
 
 const TABS = [
+  { key: "overview", label: "Overview", icon: "▦" },
   { key: "general", label: "General & Hero", icon: "🏠" },
   { key: "about", label: "About Section", icon: "📖" },
   { key: "services", label: "Services", icon: "⚖️" },
@@ -60,6 +66,13 @@ const TABS = [
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
+const CONSULTATION_STATUSES: { value: ConsultationStatus; label: string }[] = [
+  { value: "new", label: "New" },
+  { value: "contacted", label: "Contacted" },
+  { value: "in_progress", label: "In progress" },
+  { value: "resolved", label: "Resolved" },
+  { value: "archived", label: "Archived" },
+];
 
 /* ─── Image Upload Component ─── */
 function ImageUpload({
@@ -240,16 +253,24 @@ function Toast({
 
 /* ─── Main Admin Dashboard Component ─── */
 export default function AdminPage() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [password, setPassword] = useState("");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [content, setContent] = useState<SiteContent | null>(null);
-  const [tab, setTab] = useState<TabKey>("general");
+  const routeTab = pathname.split("/")[2] as TabKey | undefined;
+  const tab = TABS.some((item) => item.key === routeTab) ? routeTab! : "overview";
+  const [releasePreview, setReleasePreview] = useState<"v1" | "v2">("v1");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
   const [saving, setSaving] = useState(false);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [loadingConsultations, setLoadingConsultations] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ConsultationStatus | "all">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [dirty, setDirty] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -262,6 +283,26 @@ export default function AdminPage() {
       setToast({ message: UI_MESSAGES.loadContentFailed, type: "error" });
     }
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/admin/session")
+      .then((response) => response.json())
+      .then((data: { authenticated?: boolean }) => {
+        if (!active) return;
+        setLoggedIn(data.authenticated === true);
+        setAuthChecked(true);
+        if (data.authenticated && pathname === "/admin") {
+          router.replace("/admin/overview");
+        }
+      })
+      .catch(() => {
+        if (active) setAuthChecked(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [pathname, router]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -284,7 +325,7 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (!loggedIn || tab !== "consultations") return;
+    if (!loggedIn || (tab !== "consultations" && tab !== "overview")) return;
 
     const timer = window.setTimeout(() => {
       void fetchConsultations();
@@ -307,7 +348,9 @@ export default function AdminPage() {
     });
     if (r.ok) {
       setLoggedIn(true);
+      setAuthChecked(true);
       setLoginError("");
+      router.replace("/admin/overview");
     } else {
       const message = await getApiError(r, UI_MESSAGES.incorrectPassword);
       setLoginError(message || UI_MESSAGES.incorrectPassword);
@@ -340,6 +383,35 @@ export default function AdminPage() {
     await fetch("/api/admin/session", { method: "DELETE" });
     setLoggedIn(false);
     setPassword("");
+    router.replace("/admin");
+  }
+
+  async function updateConsultation(
+    id: number,
+    changes: { status?: ConsultationStatus; adminNotes?: string },
+  ) {
+    const response = await fetch("/api/admin/consultations", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...changes }),
+    });
+    if (!response.ok) {
+      setToast({
+        message: await getApiError(response, UI_MESSAGES.unableToSaveChanges),
+        type: "error",
+      });
+      return;
+    }
+    setToast({ message: "Consultation updated.", type: "success" });
+    await fetchConsultations();
+  }
+
+  if (!authChecked) {
+    return (
+      <main className="min-h-screen bg-slate-950 text-slate-200 flex items-center justify-center font-sans">
+        <p className="text-sm text-slate-400">Checking admin session…</p>
+      </main>
+    );
   }
 
   /* ─── Login Screen ─── */
@@ -468,6 +540,44 @@ export default function AdminPage() {
           />
         </div>
       </div>
+    );
+  }
+
+  function renderOverview() {
+    const overviewLinks = [
+      { label: "Website content", detail: `${content!.services.length} practice areas`, href: "/admin/general", icon: "✎" },
+      { label: "Team directory", detail: `${content!.team.length} profiles`, href: "/admin/team", icon: "♙" },
+      { label: "Consultation inbox", detail: `${consultations.length} requests`, href: "/admin/consultations", icon: "✉" },
+      { label: "Nyaycast articles", detail: `${content!.articles.length} links`, href: "/admin/nyaycast", icon: "▤" },
+    ];
+
+    return (
+      <section className="max-w-6xl space-y-8">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-amber-500">Workspace</p>
+          <h2 className="mt-2 text-2xl font-serif text-white">Good to see you</h2>
+          <p className="mt-1 text-sm text-slate-400">Manage your public site and incoming consultations.</p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {overviewLinks.map((item) => (
+            <Link key={item.href} href={item.href} className="border border-slate-800 bg-slate-900 p-5 transition hover:border-amber-500/50">
+              <span className="text-xl text-amber-500">{item.icon}</span>
+              <h3 className="mt-5 text-sm font-semibold text-white">{item.label}</h3>
+              <p className="mt-1 text-xs text-slate-400">{item.detail}</p>
+            </Link>
+          ))}
+        </div>
+        <div className="border-t border-slate-800 pt-6">
+          <h3 className="text-sm font-semibold text-white">Content sections</h3>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {TABS.filter((item) => item.key !== "overview").map((item) => (
+              <Link key={item.key} href={`/admin/${item.key}`} className="border border-slate-700 px-3 py-2 text-xs text-slate-300 transition hover:border-amber-500/60 hover:text-amber-300">
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
     );
   }
 
@@ -1112,11 +1222,16 @@ export default function AdminPage() {
 
   function renderConsultations() {
     const filtered = consultations.filter(
-      (c) =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.phone.includes(searchQuery) ||
-        c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.message.toLowerCase().includes(searchQuery.toLowerCase())
+      (c) => {
+        const createdAt = new Date(c.created_at);
+        const afterStart = !dateFrom || createdAt >= new Date(`${dateFrom}T00:00:00`);
+        const beforeEnd = !dateTo || createdAt <= new Date(`${dateTo}T23:59:59.999`);
+        return (statusFilter === "all" || c.status === statusFilter) && afterStart && beforeEnd &&
+        (c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.phone.includes(searchQuery) ||
+          (c.email || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          c.message.toLowerCase().includes(searchQuery.toLowerCase()));
+      }
     );
 
     return (
@@ -1129,6 +1244,31 @@ export default function AdminPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <select
+              aria-label="Filter consultations by status"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as ConsultationStatus | "all")}
+              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-slate-200"
+            >
+              <option value="all">All statuses</option>
+              {CONSULTATION_STATUSES.map((status) => (
+                <option key={status.value} value={status.value}>{status.label}</option>
+              ))}
+            </select>
+            <input
+              aria-label="Consultations from date"
+              type="date"
+              value={dateFrom}
+              onChange={(event) => setDateFrom(event.target.value)}
+              className="border border-slate-200 bg-white px-2 py-2 text-xs text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+            />
+            <input
+              aria-label="Consultations through date"
+              type="date"
+              value={dateTo}
+              onChange={(event) => setDateTo(event.target.value)}
+              className="border border-slate-200 bg-white px-2 py-2 text-xs text-slate-800 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
+            />
             <input
               type="text"
               placeholder="Search submissions..."
@@ -1136,6 +1276,12 @@ export default function AdminPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
             />
+            <a
+              href="/api/admin/consultations/export"
+              className="inline-flex items-center gap-1.5 border border-slate-300 dark:border-slate-700 px-3.5 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:border-amber-500/60"
+            >
+              Export CSV
+            </a>
             <button
               type="button"
               className="inline-flex items-center gap-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-medium px-3.5 py-2 rounded-xl transition cursor-pointer"
@@ -1184,6 +1330,16 @@ export default function AdminPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <select
+                    aria-label={`Status for ${c.name}`}
+                    value={c.status}
+                    onChange={(event) => void updateConsultation(c.id, { status: event.target.value as ConsultationStatus })}
+                    className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200"
+                  >
+                    {CONSULTATION_STATUSES.map((status) => (
+                      <option key={status.value} value={status.value}>{status.label}</option>
+                    ))}
+                  </select>
                   <a
                     href={`tel:${c.phone}`}
                     className="inline-flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg hover:bg-amber-500/20 transition"
@@ -1203,6 +1359,29 @@ export default function AdminPage() {
               <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-4 rounded-xl leading-relaxed border border-slate-100 dark:border-slate-800/60 font-sans">
                 {c.message}
               </p>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <label className="flex-1 space-y-1.5">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Private admin notes</span>
+                  <textarea
+                    value={c.admin_notes || ""}
+                    maxLength={5000}
+                    rows={2}
+                    onChange={(event) =>
+                      setConsultations((previous) => previous.map((item) =>
+                        item.id === c.id ? { ...item, admin_notes: event.target.value } : item,
+                      ))
+                    }
+                    className="w-full resize-y border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void updateConsultation(c.id, { adminNotes: c.admin_notes || "" })}
+                  className="border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:border-amber-500/60 dark:border-slate-700 dark:text-slate-200"
+                >
+                  Save note
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -1211,6 +1390,7 @@ export default function AdminPage() {
   }
 
   const tabContent: Record<TabKey, () => React.ReactNode> = {
+    overview: renderOverview,
     general: renderGeneral,
     about: renderAbout,
     services: renderServices,
@@ -1245,10 +1425,9 @@ export default function AdminPage() {
             {TABS.map((t) => {
               const active = tab === t.key;
               return (
-                <button
+                <Link
                   key={t.key}
-                  type="button"
-                  onClick={() => setTab(t.key)}
+                  href={`/admin/${t.key}`}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                     active
                       ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
@@ -1264,7 +1443,7 @@ export default function AdminPage() {
                       {consultations.length}
                     </span>
                   )}
-                </button>
+                </Link>
               );
             })}
           </nav>
@@ -1308,6 +1487,12 @@ export default function AdminPage() {
           </div>
 
           <div className="flex items-center gap-4">
+            {process.env.NODE_ENV === "development" && (
+              <div className="flex items-center border border-slate-700 p-1 text-[10px] font-semibold uppercase tracking-wider">
+                <button type="button" aria-pressed={releasePreview === "v1"} onClick={() => setReleasePreview("v1")} className={`px-2 py-1 ${releasePreview === "v1" ? "bg-amber-500 text-slate-950" : "text-slate-400"}`}>V1</button>
+                <button type="button" aria-pressed={releasePreview === "v2"} onClick={() => setReleasePreview("v2")} className={`px-2 py-1 ${releasePreview === "v2" ? "bg-amber-500 text-slate-950" : "text-slate-400"}`}>V2 Preview</button>
+              </div>
+            )}
             {dirty && (
               <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full font-medium">
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
@@ -1340,13 +1525,10 @@ export default function AdminPage() {
         {mobileMenuOpen && (
           <div className="lg:hidden bg-slate-900 border-b border-slate-800 p-4 space-y-1">
             {TABS.map((t) => (
-              <button
+              <Link
                 key={t.key}
-                type="button"
-                onClick={() => {
-                  setTab(t.key);
-                  setMobileMenuOpen(false);
-                }}
+                href={`/admin/${t.key}`}
+                onClick={() => setMobileMenuOpen(false)}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium ${
                   tab === t.key ? "bg-amber-500/20 text-amber-400" : "text-slate-300"
                 }`}
@@ -1354,13 +1536,28 @@ export default function AdminPage() {
                 <span>
                   {t.icon} {t.label}
                 </span>
-              </button>
+              </Link>
             ))}
           </div>
         )}
 
         {/* Dynamic Content Body */}
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-slate-950">{tabContent[tab]()}</main>
+        <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-slate-950">
+          {releasePreview === "v2" && process.env.NODE_ENV === "development" ? (
+            <section className="mx-auto max-w-3xl border border-dashed border-amber-500/50 bg-slate-900 p-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-400">Local preview only · V2</p>
+              <h2 className="mt-3 text-2xl font-serif text-white">Engagement features are not released</h2>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">This preview is a placeholder for the separate V2 release. No V2 features are active on the public site.</p>
+              <ul className="mt-6 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+                <li>Searchable legal guides</li>
+                <li>Gujarati and English editions</li>
+                <li>Opt-in Nyaycast updates</li>
+                <li>Downloadable legal checklists</li>
+                <li>Consultation preparation checklist</li>
+              </ul>
+            </section>
+          ) : tabContent[tab]()}
+        </main>
       </div>
     </div>
   );

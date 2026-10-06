@@ -62,4 +62,14 @@ CREATE TABLE IF NOT EXISTS site_articles (
 	sort_order INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS consultations (id BIGSERIAL PRIMARY KEY, name TEXT NOT NULL, phone TEXT NOT NULL, email TEXT, message TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW());
+CREATE TABLE IF NOT EXISTS consultations (
+	id BIGSERIAL PRIMARY KEY,
+	name TEXT NOT NULL,
+	phone TEXT NOT NULL,
+	email TEXT,
+	message TEXT NOT NULL,
+	status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'contacted', 'in_progress', 'resolved', 'archived')),
+	admin_notes TEXT NOT NULL DEFAULT '',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
