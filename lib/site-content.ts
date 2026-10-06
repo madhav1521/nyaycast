@@ -16,7 +16,7 @@ export const defaultSiteContent = {
     "801, 8th Floor, Ratnanjali Solitaire, Near Omkareshwar Mahadev Temple, Satellite, Ahmedabad – 380015, Gujarat, India.",
   phone: "+91 99788 44826",
   email: "manasagravat.adv@gmail.com",
-  notificationEmail: "manas0812@yopmail.com",
+  notificationEmail: "manasagravat.adv@gmail.com",
   officeHours: "Monday to Saturday · 10:00 am to 8:00 pm",
   socials: {
     linkedin: "https://www.linkedin.com/in/manas-agravat-6931b65195",

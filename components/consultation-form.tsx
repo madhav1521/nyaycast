@@ -100,7 +100,7 @@ export function ConsultationForm() {
               Consultation Request Received!
             </h3>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-md mx-auto">
-              Thank you, <strong className="text-white">{submittedName}</strong>. Advocate Manas A. Agravat&apos;s office has received your legal inquiry and an email notification has been dispatched.
+              Thank you, <strong className="text-white">{submittedName}</strong>. Advocate Manas A. Agravat&apos;s office has received your legal inquiry.
             </p>
             <p className="text-xs text-[#b8955d] font-medium bg-[#20314f] p-3 rounded-xl border border-slate-700/60">
               📞 Our advocate team will contact you at <span className="font-mono text-white">{submittedPhone}</span> within 1 business day.

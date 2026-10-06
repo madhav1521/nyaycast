@@ -1068,12 +1068,6 @@ export default function AdminPage() {
             />
           </div>
           <TextField
-            label="Consultation Alert Recipient Email"
-            value={content!.notificationEmail || "manas0812@yopmail.com"}
-            onChange={(v) => update("notificationEmail", v)}
-            placeholder="manas0812@yopmail.com"
-          />
-          <TextField
             label="Office Working Hours"
             value={content!.officeHours}
             onChange={(v) => update("officeHours", v)}

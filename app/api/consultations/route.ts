@@ -1,5 +1,5 @@
 import { neon } from "@neondatabase/serverless";
-import { getSiteContent } from "@/lib/site-content";
+import { Resend } from "resend";
 import { API_MESSAGES } from "@/constants/messages";
 import { phoneDigits } from "@/lib/common";
 
@@ -60,13 +60,8 @@ export async function POST(request: Request) {
       await sql`INSERT INTO consultations (name, phone, email, message) VALUES (${name}, ${phone}, ${email}, ${message})`;
     }
 
-    // Get configured notification email from Site Content
-    const site = await getSiteContent();
-    const recipientEmail = site.notificationEmail || "manas0812@yopmail.com";
-
-    // Dispatch email notification
-    await sendConsultationEmail({
-      recipientEmail,
+    // Dispatch email notification after the request is safely stored.
+    const emailDelivery = await sendConsultationEmail({
       clientName: name,
       clientPhone: phone,
       clientEmail: email,
@@ -77,6 +72,7 @@ export async function POST(request: Request) {
       return Response.json({
         success: true,
         message: API_MESSAGES.consultationReceived,
+        emailSent: emailDelivery.sent,
       });
     }
 
@@ -94,20 +90,33 @@ export async function POST(request: Request) {
 }
 
 async function sendConsultationEmail({
-  recipientEmail,
   clientName,
   clientPhone,
   clientEmail,
   clientMessage,
 }: {
-  recipientEmail: string;
   clientName: string;
   clientPhone: string;
   clientEmail: string;
   clientMessage: string;
 }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.RESEND_FROM_EMAIL;
+
+  if (!apiKey || !from) {
+    console.warn(
+      "Consultation email skipped: configure RESEND_API_KEY and RESEND_FROM_EMAIL."
+    );
+    return { sent: false };
+  }
+
+  if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(from.replace(/^.*<|>.*$/g, "").trim())) {
+    console.error("Invalid RESEND_FROM_EMAIL: provide an address at a verified sending domain.");
+    return { sent: false };
+  }
+
   const timestamp = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-  const subject = `📢 New Consultation Request from ${clientName}`;
+  const subject = `New Consultation Request from ${clientName}`;
   const textContent = `New Legal Consultation Request
 ---------------------------------
 Name: ${clientName}
@@ -121,30 +130,25 @@ ${clientMessage}
 ---------------------------------
 View in Admin Inbox: ${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/admin`;
 
-  console.log(`[EMAIL NOTIFICATION TO ${recipientEmail}]`, {
-    to: recipientEmail,
-    subject,
-    body: textContent,
-  });
+  const resend = new Resend(apiKey);
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to: ["manasagravat.adv@gmail.com"],
+      replyTo: clientEmail || undefined,
+      subject,
+      text: textContent,
+    });
 
-  // Optional: If Resend API Key is set in environment, send via Resend REST API
-  if (process.env.RESEND_API_KEY) {
-    try {
-      await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "Website Consultation <onboarding@resend.dev>",
-          to: [recipientEmail],
-          subject,
-          text: textContent,
-        }),
-      });
-    } catch (e) {
-      console.error("Failed to send email via Resend:", e);
+    if (error) {
+      console.error("Failed to send consultation email via Resend:", error.message);
+      return { sent: false };
     }
+
+    console.info("Consultation email sent via Resend:", data.id);
+    return { sent: true };
+  } catch (error) {
+    console.error("Network error sending consultation email via Resend:", error);
+    return { sent: false };
   }
 }

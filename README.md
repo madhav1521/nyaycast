@@ -34,3 +34,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Consultation Email Notifications
+
+Consultation requests are saved to the admin inbox and emailed to `manasagravat.adv@gmail.com` using Resend. Resend's free transactional-email plan currently includes 3,000 emails per month, with a limit of 100 per day.
+
+1. Create a free account at [Resend](https://resend.com/).
+2. Add and verify a domain you control in Resend. Publish the DNS records Resend provides; the sender address must use that verified domain.
+3. Create a Resend API key.
+4. Add these server-side environment variables to `.env.local` for local development and to your hosting provider's environment settings for deployment:
+
+```env
+RESEND_API_KEY=re_your_api_key
+RESEND_FROM_EMAIL="Manas Agravat Website <contact@your-verified-domain.com>"
+```
+
+Replace the example sender address with an address at your verified domain, then restart the development server or redeploy. Never expose the API key in a `NEXT_PUBLIC_` variable or commit it to source control. If email configuration is missing or Resend is temporarily unavailable, the request is still retained in the admin inbox and the server logs the mail failure.
